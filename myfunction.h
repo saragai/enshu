@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 #define TRUE 1
 #define FALSE 0
@@ -110,15 +109,3 @@ CvScalar FilterContour(CvSeq *Contour, int Level, int *flag){
   }
   return ContoursColor;
 }
-=======
-void mydraw(IplImage *src_img, IplImage *dst_img);
-
-
-void mydraw(IplImage *src_img, IplImage *dst_img){
-  //二値化
-  cvThreshold(src_img, dst_img,0,255,CV_THRESH_BINARY|CV_THRESH_OTSU);
-
-  cv_Labelling(src_img,dst_img);
-}
-
->>>>>>> e7e744aa4b55c5e2dbc22eea22a7c7935173c71b
