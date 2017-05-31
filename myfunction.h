@@ -2,8 +2,16 @@
 #define TRUE 1
 #define FALSE 0
 
-void mydraw(IplImage *src_img,IplImage *tmp_img, IplImage *dst_img, CvMemStorage *parent_storage);
-void labelling(IplImage *src_img, IplImage *dst_img, CvMemStorage *parent_storage);
+void mydraw(IplImage *src_img,
+	    IplImage *tmp_img,
+	    IplImage *dst_img,
+	    CvMemStorage *parent_storage,
+	    CvMemStorage *parent_storagepoly
+	    );
+void labelling(IplImage *src_img,
+	       IplImage *dst_img,
+	       CvMemStorage *parent_storage,
+	       CvMemStorage *parent_storagepoly);
 //label function
 void DrawNextContour(IplImage *img, //ラベリング結果を描画するIplImage（モノクロ）
 		     CvSeq *Contour,//輪郭へのポインタ
@@ -19,41 +27,73 @@ int ChoiceColor();
 void mydraw(IplImage *src_img,//Input
 	    IplImage *tmp_img,
 	    IplImage *dst_img,//Output
-	    CvMemStorage *parent_storage){
+	    CvMemStorage *parent_storage,
+	    CvMemStorage *parent_storagepoly
+	    ){
   
   //グレースケール化
   cvCvtColor(src_img,tmp_img,CV_BGR2GRAY);
   
   //ガウシアンフィルタ
-  cvSmooth(tmp_img,tmp_img,CV_GAUSSIAN,5,0,0,0);
+  cvSmooth(tmp_img,tmp_img,CV_GAUSSIAN,3,0,0,0);
   //二値化
   cvThreshold(tmp_img, tmp_img,0,255,CV_THRESH_BINARY|CV_THRESH_OTSU);
-  
+
+  cvNot(tmp_img, tmp_img);
   //cvCanny(tmp_img,tmp_img,30,80,3);
   //ラベリング
-  labelling(tmp_img, dst_img, parent_storage);
+  labelling(tmp_img, dst_img, parent_storage,parent_storagepoly);
 
   
 }
 
-void labelling(IplImage *src_img, IplImage *dst_img, CvMemStorage *parent_storage){
+void labelling(IplImage *src_img, IplImage *dst_img, CvMemStorage *parent_storage,CvMemStorage *parent_storagepoly){
   CvMemStorage *child_storage = cvCreateChildMemStorage(parent_storage);
+  CvMemStorage *child_storagepoly = cvCreateChildMemStorage(parent_storagepoly);
   CvSeq *contours = 0;
+  CvSeq *polycontour=NULL;
+  int contourCount=0;
+  cvSet(dst_img, CV_RGB(0,0,0), NULL);
+  contourCount = cvFindContours(src_img,
+				 child_storage,
+				 &contours,
+				 sizeof(CvContour),
+				 CV_RETR_CCOMP,
+				 CV_CHAIN_APPROX_SIMPLE,
+				 cvPoint(0,0));
   
-  cvFindContours(src_img,
-		 child_storage,
-		 &contours,
-		 sizeof(CvContour),
-		 CV_RETR_TREE,
-		 CV_CHAIN_APPROX_SIMPLE,
-		 cvPoint(0,0));
+  polycontour = cvApproxPoly(contours,
+			     sizeof(CvContour),
+			     child_storagepoly,
+			     CV_POLY_APPROX_DP,
+			     10,
+			     1
+			     );
+  for(CvSeq* c = polycontour;c!=NULL;c=c->h_next){
+    if((cvContourPerimeter(c)<2000)&&(cvContourPerimeter(c)>60)&&(c->total==4)){
+      //四角形の中に四角形があればマーカーとする。
+      if(c->v_next!=NULL){
+	if(c->v_next->total==4){
+	  int nearest_index = 0;
+	  CvSeq* c_vnext=c->v_next;
+	  
+	  cvDrawContours(dst_img,c,CV_RGB(255,255,0),CV_RGB(200,255,255),0,CV_FILLED,8,cvPoint(0,0));
+	  cvDrawContours(dst_img,c_vnext,CV_RGB(255,0,0),CV_RGB(0,255,255),0,CV_FILLED,8,cvPoint(0,0));
+	}
+      }
+    }
+  }
   
-  if(contours !=NULL){
+
+  /*
+  if(contours !=NULL)
     cvSet(dst_img, CV_RGB(0,0,0), NULL);
     DrawNextContour(dst_img,contours,1);
   }
+  */
   //cvReleaseSeq(&contours);
   cvReleaseMemStorage(&child_storage);
+  cvReleaseMemStorage(&child_storagepoly);
 }
 
 void DrawNextContour(IplImage *img, //ラベリング結果を描画するIplImage（モノクロ）

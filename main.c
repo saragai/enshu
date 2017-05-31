@@ -15,49 +15,30 @@ int main(int argc, char **argv){
   char *window_name = "Image";
   
   CvMemStorage *storage = cvCreateMemStorage(0);
-
+  CvMemStorage *storagepoly = cvCreateMemStorage(0);
+  
   cvNamedWindow (window_name, CV_WINDOW_AUTOSIZE);
   
-  if(camera ==1){
-    capture = cvCreateCameraCapture(0);
+  capture = cvCreateCameraCapture(0);
+  src_img = cvQueryFrame(capture);
+  
+  tmp_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 1);
+  bg_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
+  bg_img=cvQueryFrame(capture);
+  dst_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
+  
+  while(1){
     src_img = cvQueryFrame(capture);
+    if(c=='s')bg_img=cvQueryFrame(capture);
     
-    tmp_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 1);
-    bg_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
-    bg_img=cvQueryFrame(capture);
-    dst_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
-    
-    while(1){
-      src_img = cvQueryFrame(capture);
-      if(c=='s')bg_img=cvQueryFrame(capture);
-      mydraw(src_img,tmp_img,dst_img,storage);
-      cvShowImage(window_name,dst_img);
-      void* life = cvGetWindowHandle(window_name);
-      c=cvWaitKey(10);
-      
-      if(c=='\x1b'||NULL==life){break;}
-    }
-  }
-  else{
-    if (argc!=2 || (src_img = cvLoadImage(argv[1], CV_LOAD_IMAGE_COLOR)) == 0){
-      return -1;
-    }
-    tmp_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 1);
-    dst_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
-    mydraw(src_img,tmp_img,dst_img,storage);
+    mydraw(src_img,tmp_img,dst_img,storage,storagepoly);
     cvShowImage(window_name,dst_img);
-    cvWaitKey(0);
+    
+    void* life = cvGetWindowHandle(window_name);
+    c=cvWaitKey(100);
+    
+    if(c=='\x1b'||NULL==life){break;}
   }
-  
-  //ここまで画像の取得
-
-  
-  
-  
-  
-  //cvCanny (src_img_gray, dst_img, 50.0,200.0,3);
-  
-  //ここから画像の描画
   
   cvDestroyWindow(window_name);
   
@@ -67,5 +48,6 @@ int main(int argc, char **argv){
   cvReleaseImage(&bg_img);
   cvReleaseImage(&dst_img);
   cvReleaseMemStorage(&storage);
+  cvReleaseMemStorage(&storagepoly);
   return 0;
 }
