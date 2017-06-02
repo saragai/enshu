@@ -3,13 +3,21 @@
 #include<highgui.h>
 #include<math.h>
 #include<ctype.h>
+
+#include<GL/glut.h> 
+
 #include"myfunction.h"
 
-#define camera 1
 
-int main(int argc, char **argv){
-  int x,y,tmp;
+// デバック用
+CvFont font;
+char debug_text[256];
+int debug_int[8];
+
   
+int main(int argc, char **argv){
+  /////     宣言など     /////
+  int x,y,tmp;
   IplImage *src_img=0,*bg_img=0,*tmp_img=0,*dst_img=0;
   CvCapture *capture=0;int c=0;
   char *window_name = "Image";
@@ -26,7 +34,10 @@ int main(int argc, char **argv){
   bg_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
   bg_img=cvQueryFrame(capture);
   dst_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
+
   
+  
+  /////      ループ開始     /////
   while(1){
     src_img = cvQueryFrame(capture);
     if(c=='s')bg_img=cvQueryFrame(capture);
@@ -35,9 +46,9 @@ int main(int argc, char **argv){
     cvShowImage(window_name,dst_img);
     
     void* life = cvGetWindowHandle(window_name);
-    c=cvWaitKey(100);
+    c=cvWaitKey(10);
     
-    if(c=='\x1b'||NULL==life){break;}
+    if(c=='q'||NULL==life){break;}
   }
   
   cvDestroyWindow(window_name);
