@@ -1,0 +1,68 @@
+/*
+extern IplImage *src_img, *dst_img;
+
+extern double x[4],y[4];
+*/
+int LoadGLTextures(){
+  IplImage *dbg_img=0;
+  dbg_img=dst_img;//出力画像の設定
+  cvFlip(dbg_img,NULL,0);
+  glBindTexture(GL_TEXTURE_2D, texture[0]);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+  
+  glTexImage2D(GL_TEXTURE_2D,
+	       0,
+	       GL_RGB,
+	       dbg_img->width,
+	       dbg_img->height,
+	       0,GL_BGR_EXT,
+	       GL_UNSIGNED_BYTE,
+	       dbg_img->imageData);
+  
+  return 1;
+}
+
+void background(){
+  float bgh=4,bgw=4,bgdepth=-15;
+  LoadGLTextures();
+  glEnable(GL_TEXTURE_2D);
+  glBegin(GL_QUADS);
+  glTexCoord2f(0,0); glVertex3f(-1 * bgw, -1 * bgh, bgdepth);
+  glTexCoord2f(0,1); glVertex3f(-1 * bgw, bgh     , bgdepth);
+  glTexCoord2f(1,1); glVertex3f(bgw,      bgh     , bgdepth);
+  glTexCoord2f(1,0); glVertex3f(bgw,      -1 * bgh, bgdepth);
+  glEnd();
+}
+
+
+void reshape (int w, int h){
+  GLsizei glw = (GLsizei)w, glh = (GLsizei)h;
+  if(w<h*4/3){//高さのほうが大きい
+    glViewport(0, (glh - glw*3/4)/2, glw, glw*3/4);
+  }else{//幅のほうが大きい
+    glViewport((glw - glh*4/3)/2, 0, glh*4/3, glh);
+  }
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glFrustum(-1.0,1.0,-1.0,1.0,
+	    2,20.0);
+  glMatrixMode(GL_MODELVIEW);
+}
+
+
+void keyboard(unsigned char key, int x, int y)
+{
+  switch (key) {
+  case 'q':
+  case 'Q':
+  case '\033':  // '\033' は ESC の ASCII コード
+    exit(0);
+  default:
+    break;
+  }
+}
+
+void marker(){
+  
+}

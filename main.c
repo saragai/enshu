@@ -4,7 +4,7 @@
 #include<math.h>
 #include<ctype.h>
 
-#include<GL/glut.h> 
+//#include<GL/glut.h> 
 
 #include"myfunction.h"
 

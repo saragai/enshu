@@ -1,13 +1,15 @@
+
 #include<stdio.h>
 #include<cv.h>
 #include<highgui.h>
 #include<math.h>
 #include<ctype.h>
-#include<GL/glut.h> 
+#include<GL/glut.h>
+#include<unistd.h>
+#include"myfunction_mat.h"
 #include"myfunction.h"
+#include"myfunction_gl.h"
 
-void mapTexture();
-void keyboard(unsigned char key, int x, int y);
 void display();
 
 
@@ -19,16 +21,39 @@ int debug_int[8];
 IplImage *src_img=0,*tmp_img=0,*dst_img=0;
 char *window_name = "Image";
 CvCapture *capture=0;
-CvMemStorage *storage;
-CvMemStorage *storagepoly;
+CvMemStorage *storage, *storagepoly;
 
-GLuint texture[1];
+int flag=1;//現在のフレームでマーカーが検出されたかどうか。されていたら1になる
 
-int init(){
+int frame_x[4],frame_y[4],start_x[4],start_y[4], goal_x[4],goal_y[4];
+
+//ここから座標変換のため
+double mkx[4],mky[4];
+double mkx_in_cmr[3], mky_in_cmr[3], mkz_in_cmr[3];
+double mk_scale=0;
+double mat_mk_cmr[3][3];
+GLuint texture[1];//テクスチャのIDを格納する配列
+
+//ここから球の移動のため
+double v[3]={0,0,0};
+double pos[3]={0,0,0};
+double pos_c[3];
+//ライティングの情報
+static const GLfloat light_position[] = { 5.0, 5.0, 5.0, 0.0 };
+static const GLfloat light_ambient[] = {0.4, 0.4, 0.4, 1.0};
+static const GLfloat light_diffuse[] = {1.0, 1.0, 1.0, 1.0};
+
+static const GLfloat mat_default_color[] = { 1.0, 1.0, 1.0, 1.0 };
+static const GLfloat mat_default_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+static const GLfloat mat_default_shininess[] = { 100.0 };
+static const GLfloat mat_default_emission[] = {0.0, 0.0, 0.0, 0.0};
+void init(){
   //OpenCV側
+  printf("here\n");
   capture = cvCreateCameraCapture(0);
-  src_img=cvQueryFrame(capture);
-  tmp_img=cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 1);
+  src_img = cvQueryFrame(capture);
+  
+  tmp_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 1);
   dst_img = cvCreateImage(cvGetSize (src_img), IPL_DEPTH_8U, 3);
   storage = cvCreateMemStorage(0);
   storagepoly = cvCreateMemStorage(0);
@@ -37,36 +62,42 @@ int init(){
   glutInitDisplayMode(GLUT_RGBA| GLUT_DOUBLE | GLUT_DEPTH);
   glutInitWindowPosition(200,200);
   glutInitWindowSize(640,480);
-  glShadeModel(GL_FLAT);
+
+  glGenTextures(1, &texture[0]);//テクスチャ
+  
+  //三次元用
+  glClearColor(0.0, 0.0, 0.0, 0.0);
+  glClearDepth(1.0);
+  // デプステストを行う
+  glEnable( GL_DEPTH_TEST );
+  glDepthFunc( GL_LESS );
+  
+  glShadeModel(GL_SMOOTH);
+  // デフォルトライト
+  glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+  glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE, light_ambient);
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+
+  // デフォルトマテリアル
+  glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_default_color);
+  glMaterialfv(GL_FRONT, GL_AMBIENT, mat_default_color);
+  glMaterialfv(GL_FRONT, GL_SPECULAR, mat_default_specular);
+  glMaterialfv(GL_FRONT, GL_SHININESS, mat_default_shininess);
 }
-int LoadGLTextures(){
-  IplImage *dbg_img=0;
-  dbg_img=dst_img;
-  cvFlip(dbg_img,NULL,0);
-  
-  glGenTextures(1, &texture[0]);
-  glBindTexture(GL_TEXTURE_2D, texture[0]);
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-  
-  glTexImage2D(GL_TEXTURE_2D,
-	       0,
-	       GL_RGB,
-	       dbg_img->width,
-	       dbg_img->height,
-	       0,GL_BGR_EXT,
-	       GL_UNSIGNED_BYTE,
-	       dbg_img->imageData);
-  
-  return 1;
-}
+
+
 
 int main(int argc, char **argv){
   glutInit(&argc,argv);
   init();
   glutCreateWindow(window_name);
+  
   glutDisplayFunc(display);
+  glutReshapeFunc(reshape);
   glutKeyboardFunc(keyboard);
+  glutSpecialFunc(specialkeydown);
   glutMainLoop();
   
   cvReleaseImage(&src_img);
@@ -78,52 +109,33 @@ int main(int argc, char **argv){
 
 void display(){
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
-  src_img = cvQueryFrame(capture);
-  mydraw(src_img,tmp_img,dst_img,storage,storagepoly);
-  LoadGLTextures();
-  
-  glBegin(GL_QUADS);
-  glColor3f(0.0,1.0,1.0);
-  glVertex2f(debug_int[0]/320.0-1,debug_int[4]/240.0-1);
-  glVertex2f(debug_int[1]/320.0-1,debug_int[5]/240.0-1);
-  glVertex2f(debug_int[2]/320.0-1,debug_int[6]/240.0-1);
-  glVertex2f(debug_int[3]/320.0-1,debug_int[7]/240.0-1);
-  glEnd();
-  
-  glutPostRedisplay();
-  mapTexture();
-  
-}
-
-void mapTexture(){
-  static const GLfloat color[] = {1.0, 1.0, 1.0, 1.0};
-  glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,color);
-  glEnable(GL_TEXTURE_2D);
-  glNormal3d(0.0,0.0,1.0);
-  glBegin(GL_QUADS);
   glColor3f(1.0,1.0,1.0);
   
-  glTexCoord2d(0.0, 1.0);
-  glVertex3d(-1,1,0.5);
-  glTexCoord2d(0.0, 0.0);
-  glVertex3d(-1,-1,0.5);
-  glTexCoord2d(1.0, 0.0);
-  glVertex3d(1,-1,0.5);
-  glTexCoord2d(1.0, 1.0);
-  glVertex3d(1,1,0.5);
-  glEnd();
-  glDisable(GL_TEXTURE_2D);
-  glutSwapBuffers();
-}
-void keyboard(unsigned char key, int x, int y)
-{
-  switch (key) {
-  case 'q':
-  case 'Q':
-  case '\033':  /* '\033' は ESC の ASCII コード */
-    exit(0);
-  default:
-    break;
+  src_img = cvQueryFrame(capture);
+  mydraw();
+  background();
+  glLoadIdentity();
+  gluLookAt(0.0, 0.0, 5.0,//カメラ位置
+	    0.0, 0.0, 0.0,//レンズを向ける方向
+	    0.0, 1.0, 0.0);//上方向ベクトル
+  glScalef(2.0, 2.0, 1.0);
+  cmr_to_mk();
+  mkframe();
+  //mkxyz();
+  mkcube();
+  /*
+  
+  glPushMatrix();
+  {
+    glColor3f(1.0,0.0,0.0);
+    glTranslated(pos_c[0],pos_c[1],pos_c[2]);
+    glutSolidSphere(0.1,30,30);
   }
+  glPopMatrix();
+  */
+  //printf("%d\n",flag);
+  printf("%lf\n",mk_scale);
+  glutPostRedisplay();
+  
+  glutSwapBuffers();
 }
